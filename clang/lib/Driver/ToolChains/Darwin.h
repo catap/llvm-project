@@ -215,7 +215,7 @@ public:
   bool IsBlocksDefault() const override {
     // Always allow blocks on Apple; users interested in versioning are
     // expected to use /usr/include/Block.h.
-    return true;
+    return false;
   }
   bool IsIntegratedAssemblerDefault() const override {
     // Default integrated assembler to on for Apple's MachO targets.
