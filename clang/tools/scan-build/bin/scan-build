@@ -969,6 +969,8 @@ sub Finalize {
       if ($Options{ViewResults} and -r "$Options{OutputDir}/index.html") {
         Diag "Viewing analysis results in '$Options{OutputDir}' using scan-view.\n";
         my $ScanView = Cwd::realpath("$RealBin/scan-view");
+        if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/bin/scan-view"); }
+        if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/../scan-view/scan-view"); }
         if (! -x $ScanView) { $ScanView = "scan-view"; }
         if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/../../scan-view/bin/scan-view"); }
         if (! -x $ScanView) { $ScanView = `which scan-view`; chomp $ScanView; }
