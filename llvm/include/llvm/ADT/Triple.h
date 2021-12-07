@@ -737,7 +737,8 @@ public:
 
   /// Tests whether the target uses emulated TLS as default.
   bool hasDefaultEmulatedTLS() const {
-    return isAndroid() || isOSOpenBSD() || isWindowsCygwinEnvironment();
+    return isAndroid() || isOSOpenBSD() || isWindowsCygwinEnvironment() ||
+           isMacOSXVersionLT(10, 7);
   }
 
   /// @}
