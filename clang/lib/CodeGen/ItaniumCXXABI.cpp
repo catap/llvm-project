@@ -2580,7 +2580,9 @@ static void emitGlobalDtorWithCXAAtExit(CodeGenFunction &CGF,
   const char *Name = "__cxa_atexit";
   if (TLS) {
     const llvm::Triple &T = CGF.getTarget().getTriple();
-    Name = T.isOSDarwin() ?  "_tlv_atexit" : "__cxa_thread_atexit";
+    Name = (T.isOSDarwin() && !(T.isMacOSX() && T.isMacOSXVersionLT(10, 7)))
+               ? "_tlv_atexit"
+               : "__cxa_thread_atexit";
   }
 
   // We're assuming that the destructor function is something we can

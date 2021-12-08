@@ -91,7 +91,7 @@ public:
     this->TLSSupported = false;
 
     if (Triple.isMacOSX())
-      this->TLSSupported = !Triple.isMacOSXVersionLT(10, 7);
+      this->TLSSupported = !Triple.isMacOSXVersionLT(10, 4);
     else if (Triple.isiOS()) {
       // 64-bit iOS supported it from 8 onwards, 32-bit device from 9 onwards,
       // 32-bit simulator from 10 onwards.

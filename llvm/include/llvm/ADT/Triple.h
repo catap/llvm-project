@@ -819,7 +819,9 @@ public:
 
   /// Tests whether the target uses emulated TLS as default.
   bool hasDefaultEmulatedTLS() const {
-    return isAndroid() || isOSOpenBSD() || isWindowsCygwinEnvironment();
+    return isAndroid() || isOSOpenBSD() || isWindowsCygwinEnvironment() ||
+           (isMacOSX() && !isMacOSXVersionLT(10, 4) &&
+            isMacOSXVersionLT(10, 7));
   }
 
   /// Tests whether the target uses -data-sections as default.
