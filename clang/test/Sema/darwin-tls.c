@@ -1,4 +1,5 @@
-// RUN: not %clang_cc1 -fsyntax-only -triple x86_64-apple-macosx10.6 %s 2>&1 | FileCheck %s --check-prefix NO-TLS
+// RUN: not %clang_cc1 -fsyntax-only -triple x86_64-apple-macosx10.3 %s 2>&1 | FileCheck %s --check-prefix NO-TLS
+// RUN: %clang_cc1 -fsyntax-only -triple x86_64-apple-macosx10.4 %s 2>&1 | FileCheck %s --check-prefix TLS
 // RUN: %clang_cc1 -fsyntax-only -triple x86_64-apple-macosx10.7 %s 2>&1 | FileCheck %s --check-prefix TLS
 
 // RUN: not %clang_cc1 -fsyntax-only -triple arm64-apple-ios7.1 %s 2>&1 | FileCheck %s --check-prefix NO-TLS
