@@ -211,7 +211,7 @@
 /* Define if the setupterm() function is supported this platform. */
 #cmakedefine HAVE_TERMINFO ${HAVE_TERMINFO}
 
-/* Define if the xar_open() function is supported this platform. */
+/* Define if the xar_extract_tobuffersz() function is supported this platform. */
 #cmakedefine HAVE_LIBXAR ${HAVE_LIBXAR}
 
 /* Define to 1 if you have the <termios.h> header file. */
