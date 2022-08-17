@@ -15,6 +15,16 @@
 #include "llvm/Support/WithColor.h"
 
 #ifdef __APPLE__
+
+#if !defined(__clang__) &&                                      \
+  defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
+  __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 101000 &&    \
+  __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101100
+
+typedef void* dispatch_block_t;
+
+#endif
+
 #include <CoreFoundation/CoreFoundation.h>
 #include <uuid/uuid.h>
 
