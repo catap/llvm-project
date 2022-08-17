@@ -38,6 +38,9 @@
 #include <mach-o/dyld.h>
 #include <sys/attr.h>
 #include <copyfile.h>
+#ifndef COPYFILE_CLONE
+#define COPYFILE_CLONE		(1<<24)
+#endif
 #elif defined(__FreeBSD__)
 #include <osreldate.h>
 #if __FreeBSD_version >= 1300057
