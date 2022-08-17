@@ -1313,6 +1313,12 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
         getTriple().getArch() != llvm::Triple::aarch64)
       CmdArgs.push_back("-lgcc_s.1");
   }
+  if (isTargetMacOS()) {
+    if (isMacosxVersionLT(10, 5))
+      CmdArgs.push_back("-lgcc_s.10.4");
+    else if (isMacosxVersionLT(10, 6))
+      CmdArgs.push_back("-lgcc_s.10.5");
+  }
   AddLinkRuntimeLib(Args, CmdArgs, "builtins");
 }
 
