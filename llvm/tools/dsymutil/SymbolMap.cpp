@@ -17,7 +17,17 @@
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <uuid/uuid.h>
+
+#if (__APPLE__ && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1060)
+/* declare a missing reference not found in SDK < 10.6 for function called below */
+typedef char * uuid_string_t;
+typedef struct __CFError * CFErrorRef;
+#define CFPropertyListCreateWithStream(A,B,C,D,E,F) CFPropertyListCreateFromStream(A,B,C,D,E,F)
 #endif
+
+#endif
+
+
 
 namespace llvm {
 namespace dsymutil {
