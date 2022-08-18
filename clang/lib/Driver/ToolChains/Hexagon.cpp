@@ -641,6 +641,8 @@ HexagonToolChain::GetCXXStdlibType(const ArgList &Args) const {
       return ToolChain::CST_Libstdcxx;
   }
   StringRef Value = A->getValue();
+  if (Value == "macports-libstdc++" || Value == "libstdc++_macports")
+    return ToolChain::CST_MacPortsLibstdcxx;
   if (Value != "libstdc++" && Value != "libc++")
     getDriver().Diag(diag::err_drv_invalid_stdlib_name) << A->getAsString(Args);
 

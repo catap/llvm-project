@@ -108,7 +108,7 @@ static bool CanPrefixSysroot(StringRef Path) {
 #if defined(_WIN32)
   return !Path.empty() && llvm::sys::path::is_separator(Path[0]);
 #else
-  return llvm::sys::path::is_absolute(Path);
+  return llvm::sys::path::is_absolute(Path) && Path.find("@@MACPORTS_GCC_INCLUDE_DIR@@")!=0;
 #endif
 }
 

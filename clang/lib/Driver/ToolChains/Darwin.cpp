@@ -2066,6 +2066,16 @@ void DarwinClang::AddClangCXXStdlibIncludeArgs(
     break;
   }
 
+  case ToolChain::CST_MacPortsLibstdcxx: {
+    bool IsBaseFoundMacPorts = AddGnuCPlusPlusIncludePaths(DriverArgs, CC1Args, llvm::StringRef("@@MACPORTS_GCC_INCLUDE_DIR@@"),
+						   "",
+						   "@@MACPORTS_HOST_NAME@@",
+						   @@MACPORTS_TEST_32_64@@);
+    if (!IsBaseFoundMacPorts) {
+      getDriver().Diag(diag::warn_drv_libstdcxx_not_found);
+    }}
+    break;
+
   case ToolChain::CST_Libstdcxx:
     llvm::SmallString<128> UsrIncludeCxx = Sysroot;
     llvm::sys::path::append(UsrIncludeCxx, "usr", "include", "c++");
@@ -2131,6 +2141,10 @@ void DarwinClang::AddCXXStdlibLibArgs(const ArgList &Args,
   switch (Type) {
   case ToolChain::CST_Libcxx:
     CmdArgs.push_back("-lc++");
+    break;
+
+  case ToolChain::CST_MacPortsLibstdcxx:
+    CmdArgs.push_back("@@MACPORTS_libstdc++@@");
     break;
 
   case ToolChain::CST_Libstdcxx:
