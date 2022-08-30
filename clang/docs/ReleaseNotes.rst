@@ -302,6 +302,9 @@ Attribute Changes in Clang
   `Clang Plugins <ClangPlugins.html#defining-attributes>`_ documentation for
   details.
 
+- Added support for C++11-style ``[[]]`` attributes on using-declarations, as a
+  clang extension.
+
 Windows Support
 ---------------
 
