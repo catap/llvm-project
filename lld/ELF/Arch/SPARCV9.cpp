@@ -60,6 +60,7 @@ SPARCV9::SPARCV9(Ctx &ctx) : TargetInfo(ctx) {
   gotHeaderEntriesNum = 1;
   pltEntrySize = 32;
   pltHeaderSize = 4 * pltEntrySize;
+  usesGotPlt = false;
 
   defaultCommonPageSize = 8192;
   defaultMaxPageSize = 0x100000;
