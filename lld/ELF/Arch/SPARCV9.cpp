@@ -28,6 +28,7 @@ public:
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
   RelType getDynRel(RelType type) const override;
+  void writeGotHeader(uint8_t *buf) const override;
   void writePlt(uint8_t *buf, const Symbol &sym,
                 uint64_t pltEntryAddr) const override;
   template <class ELFT, class RelTy>
@@ -56,6 +57,7 @@ SPARCV9::SPARCV9(Ctx &ctx) : TargetInfo(ctx) {
   tlsGotRel = R_SPARC_TLS_TPOFF64;
   tlsModuleIndexRel = R_SPARC_TLS_DTPMOD64;
   tlsOffsetRel = R_SPARC_TLS_DTPOFF64;
+  gotHeaderEntriesNum = 1;
   pltEntrySize = 32;
   pltHeaderSize = 4 * pltEntrySize;
 
@@ -423,6 +425,10 @@ void SPARCV9::relaxGot(uint8_t *loc, const Relocation &rel,
   default:
     llvm_unreachable("unknown relocation");
   }
+}
+
+void SPARCV9::writeGotHeader(uint8_t *buf) const {
+  write64be(buf, ctx.in.dynamic->getVA());
 }
 
 static bool isTlsCall(RelType type) {
