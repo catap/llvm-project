@@ -25,6 +25,7 @@ public:
   SPARCV9(Ctx &);
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
+  RelType getDynRel(RelType type) const override;
   void writePlt(uint8_t *buf, const Symbol &sym,
                 uint64_t pltEntryAddr) const override;
   template <class ELFT, class RelTy>
@@ -42,6 +43,7 @@ SPARCV9::SPARCV9(Ctx &ctx) : TargetInfo(ctx) {
   gotRel = R_SPARC_GLOB_DAT;
   pltRel = R_SPARC_JMP_SLOT;
   relativeRel = R_SPARC_RELATIVE;
+  iRelativeRel = R_SPARC_IRELATIVE;
   symbolicRel = R_SPARC_64;
   pltEntrySize = 32;
   pltHeaderSize = 4 * pltEntrySize;
@@ -72,6 +74,12 @@ RelExpr SPARCV9::getRelExpr(RelType type, const Symbol &s,
   }
 }
 
+RelType SPARCV9::getDynRel(RelType type) const {
+  if (type == symbolicRel || type == R_SPARC_UA64)
+    return type;
+  return R_SPARC_NONE;
+}
+
 template <class ELFT, class RelTy>
 void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
   RelocScan rs(ctx, &sec);
@@ -92,18 +100,24 @@ void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
       continue;
 
     // Absolute relocations:
+    case R_SPARC_8:
+    case R_SPARC_16:
     case R_SPARC_32:
+    case R_SPARC_HI22:
+    case R_SPARC_13:
+    case R_SPARC_LO10:
     case R_SPARC_UA32:
     case R_SPARC_64:
-    case R_SPARC_UA64:
-    case R_SPARC_H44:
-    case R_SPARC_M44:
-    case R_SPARC_L44:
     case R_SPARC_HH22:
     case R_SPARC_HM10:
     case R_SPARC_LM22:
-    case R_SPARC_HI22:
-    case R_SPARC_LO10:
+    case R_SPARC_HIX22:
+    case R_SPARC_LOX10:
+    case R_SPARC_H44:
+    case R_SPARC_M44:
+    case R_SPARC_L44:
+    case R_SPARC_UA64:
+    case R_SPARC_UA16:
       expr = R_ABS;
       break;
 
@@ -113,15 +127,22 @@ void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
       continue;
 
     // PC-relative relocations:
-    case R_SPARC_PC10:
-    case R_SPARC_PC22:
+    case R_SPARC_DISP8:
+    case R_SPARC_DISP16:
     case R_SPARC_DISP32:
     case R_SPARC_WDISP30:
+    case R_SPARC_WDISP22:
+    case R_SPARC_PC10:
+    case R_SPARC_PC22:
+    case R_SPARC_WDISP16:
+    case R_SPARC_WDISP19:
+    case R_SPARC_DISP64:
       rs.processR_PC(type, offset, addend, sym);
       continue;
 
     // GOT relocations:
     case R_SPARC_GOT10:
+    case R_SPARC_GOT13:
     case R_SPARC_GOT22:
       expr = R_GOT_OFF;
       break;
@@ -147,70 +168,119 @@ void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
 void SPARCV9::relocate(uint8_t *loc, const Relocation &rel,
                        uint64_t val) const {
   switch (rel.type) {
+  case R_SPARC_8:
+    // V-byte8
+    checkUInt(ctx, loc, val, 8, rel);
+    *loc = val;
+    break;
+  case R_SPARC_16:
+  case R_SPARC_UA16:
+    // V-half16
+    checkUInt(ctx, loc, val, 16, rel);
+    write16be(loc, val);
+    break;
   case R_SPARC_32:
   case R_SPARC_UA32:
     // V-word32
     checkUInt(ctx, loc, val, 32, rel);
     write32be(loc, val);
     break;
+  case R_SPARC_DISP8:
+    // V-byte8
+    checkIntUInt(ctx, loc, val, 8, rel);
+    *loc = val;
+    break;
+  case R_SPARC_DISP16:
+    // V-half16
+    checkIntUInt(ctx, loc, val, 16, rel);
+    write16be(loc, val);
+    break;
   case R_SPARC_DISP32:
     // V-disp32
-    checkInt(ctx, loc, val, 32, rel);
+    checkIntUInt(ctx, loc, val, 32, rel);
     write32be(loc, val);
     break;
   case R_SPARC_WDISP30:
   case R_SPARC_WPLT30:
     // V-disp30
-    checkInt(ctx, loc, val, 32, rel);
+    checkIntUInt(ctx, loc, val, 32, rel);
     write32be(loc, (read32be(loc) & ~0x3fffffff) | ((val >> 2) & 0x3fffffff));
+    break;
+  case R_SPARC_WDISP22:
+    // V-disp22
+    checkIntUInt(ctx, loc, val, 24, rel);
+    write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 2) & 0x003fffff));
+    break;
+  case R_SPARC_HI22:
+    // V-imm22
+    checkUInt(ctx, loc, val, 32, rel);
+    write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 10) & 0x003fffff));
     break;
   case R_SPARC_22:
     // V-imm22
     checkUInt(ctx, loc, val, 22, rel);
     write32be(loc, (read32be(loc) & ~0x003fffff) | (val & 0x003fffff));
     break;
+  case R_SPARC_13:
+  case R_SPARC_GOT13:
+    // V-simm13
+    checkIntUInt(ctx, loc, val, 13, rel);
+    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x00001fff));
+    break;
+  case R_SPARC_LO10:
+  case R_SPARC_GOT10:
+  case R_SPARC_PC10:
+    // T-simm13
+    write32be(loc, (read32be(loc) & ~0x000003ff) | (val & 0x000003ff));
+    break;
   case R_SPARC_GOT22:
-  case R_SPARC_PC22:
   case R_SPARC_LM22:
     // T-imm22
     write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 10) & 0x003fffff));
     break;
-  case R_SPARC_HI22:
-    // V-imm22
-    checkUInt(ctx, loc, val >> 10, 22, rel);
+  case R_SPARC_PC22:
+    // V-disp22
+    checkIntUInt(ctx, loc, val, 32, rel);
     write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 10) & 0x003fffff));
     break;
-  case R_SPARC_WDISP19:
-    // V-disp19
-    checkInt(ctx, loc, val, 21, rel);
-    write32be(loc, (read32be(loc) & ~0x0007ffff) | ((val >> 2) & 0x0007ffff));
-    break;
-  case R_SPARC_GOT10:
-  case R_SPARC_PC10:
-    // T-simm10
-    write32be(loc, (read32be(loc) & ~0x000003ff) | (val & 0x000003ff));
-    break;
-  case R_SPARC_LO10:
-    // T-simm13
-    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff));
-    break;
   case R_SPARC_64:
+  case R_SPARC_DISP64:
   case R_SPARC_UA64:
     // V-xword64
     write64be(loc, val);
     break;
   case R_SPARC_HH22:
     // V-imm22
-    checkUInt(ctx, loc, val >> 42, 22, rel);
     write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 42) & 0x003fffff));
     break;
   case R_SPARC_HM10:
     // T-simm13
-    write32be(loc, (read32be(loc) & ~0x00001fff) | ((val >> 32) & 0x000003ff));
+    write32be(loc, (read32be(loc) & ~0x000003ff) | ((val >> 32) & 0x000003ff));
+    break;
+  case R_SPARC_WDISP16:
+    // V-d2/disp14
+    checkIntUInt(ctx, loc, val, 18, rel);
+    write32be(loc, (read32be(loc) & ~0x0303fff) | (((val >> 2) & 0xc000) << 6) |
+                       ((val >> 2) & 0x00003fff));
+    break;
+  case R_SPARC_WDISP19:
+    // V-disp19
+    checkIntUInt(ctx, loc, val, 21, rel);
+    write32be(loc, (read32be(loc) & ~0x0007ffff) | ((val >> 2) & 0x0007ffff));
+    break;
+  case R_SPARC_HIX22:
+    // V-imm22
+    checkUInt(ctx, loc, ~val, 32, rel);
+    write32be(loc, (read32be(loc) & ~0x003fffff) | ((~val >> 10) & 0x003fffff));
+    break;
+  case R_SPARC_LOX10:
+  case R_SPARC_TLS_LE_LOX10:
+    // T-simm13
+    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff) | 0x1c00);
     break;
   case R_SPARC_H44:
     // V-imm22
-    checkUInt(ctx, loc, val >> 22, 22, rel);
+    checkUInt(ctx, loc, val, 44, rel);
     write32be(loc, (read32be(loc) & ~0x003fffff) | ((val >> 22) & 0x003fffff));
     break;
   case R_SPARC_M44:
@@ -219,15 +289,11 @@ void SPARCV9::relocate(uint8_t *loc, const Relocation &rel,
     break;
   case R_SPARC_L44:
     // T-imm13
-    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x00000fff));
+    write32be(loc, (read32be(loc) & ~0x00000fff) | (val & 0x00000fff));
     break;
   case R_SPARC_TLS_LE_HIX22:
     // T-imm22
     write32be(loc, (read32be(loc) & ~0x003fffff) | ((~val >> 10) & 0x003fffff));
-    break;
-  case R_SPARC_TLS_LE_LOX10:
-    // T-simm13
-    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff) | 0x1C00);
     break;
   default:
     llvm_unreachable("unknown relocation");
