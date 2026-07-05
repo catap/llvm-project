@@ -38,6 +38,11 @@ public:
   void relocate(uint8_t *loc, const Relocation &rel,
                 uint64_t val) const override;
   void finalizeRelocScan() override;
+  RelExpr adjustGotOffExpr(RelType type, const Symbol &sym, int64_t addend,
+                           const uint8_t *loc) const override;
+
+private:
+  void relaxGot(uint8_t *loc, const Relocation &rel, uint64_t val) const;
 };
 } // namespace
 
@@ -160,7 +165,14 @@ void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
     case R_SPARC_GOT10:
     case R_SPARC_GOT13:
     case R_SPARC_GOT22:
+    case R_SPARC_GOTDATA_OP_HIX22:
+    case R_SPARC_GOTDATA_OP_LOX10:
+    case R_SPARC_GOTDATA_OP:
       expr = R_GOT_OFF;
+      break;
+    case R_SPARC_GOTDATA_HIX22:
+    case R_SPARC_GOTDATA_LOX10:
+      expr = R_GOTREL;
       break;
 
     // TLS LE relocations:
@@ -202,6 +214,13 @@ void SPARCV9::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
 
 void SPARCV9::relocate(uint8_t *loc, const Relocation &rel,
                        uint64_t val) const {
+  switch (rel.expr) {
+  case R_RELAX_GOT_OFF:
+    return relaxGot(loc, rel, val);
+  default:
+    break;
+  }
+
   switch (rel.type) {
   case R_SPARC_8:
     // V-byte8
@@ -319,6 +338,8 @@ void SPARCV9::relocate(uint8_t *loc, const Relocation &rel,
     break;
   case R_SPARC_LOX10:
   case R_SPARC_TLS_LE_LOX10:
+  case R_SPARC_GOTDATA_LOX10:
+  case R_SPARC_GOTDATA_OP_LOX10:
     // T-simm13
     write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff) | 0x1c00);
     break;
@@ -349,6 +370,55 @@ void SPARCV9::relocate(uint8_t *loc, const Relocation &rel,
   case R_SPARC_TLS_LDO_LOX10:
     // T-simm13
     write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff));
+    break;
+  case R_SPARC_GOTDATA_HIX22:
+    // V-imm22
+    checkUInt(ctx, loc, ((int64_t)val < 0 ? ~val : val), 32, rel);
+    write32be(loc, (read32be(loc) & ~0x003fffff) |
+                       ((((int64_t)val < 0 ? ~val : val) >> 10) & 0x003fffff));
+    break;
+  case R_SPARC_GOTDATA_OP_HIX22:
+    // T-imm22
+    write32be(loc, (read32be(loc) & ~0x003fffff) |
+                       ((((int64_t)val < 0 ? ~val : val) >> 10) & 0x003fffff));
+    break;
+  case R_SPARC_GOTDATA_OP:
+    break;
+  default:
+    llvm_unreachable("unknown relocation");
+  }
+}
+
+RelExpr SPARCV9::adjustGotOffExpr(RelType type, const Symbol &sym,
+                                  int64_t addend, const uint8_t *loc) const {
+  switch (type) {
+  case R_SPARC_GOTDATA_OP_HIX22:
+  case R_SPARC_GOTDATA_OP_LOX10:
+  case R_SPARC_GOTDATA_OP:
+    if (sym.isLocal())
+      return R_RELAX_GOT_OFF;
+    [[fallthrough]];
+  default:
+    return R_GOT_OFF;
+  }
+}
+
+void SPARCV9::relaxGot(uint8_t *loc, const Relocation &rel,
+                       uint64_t val) const {
+  switch (rel.type) {
+  case R_SPARC_GOTDATA_OP_HIX22:
+    // T-imm22
+    write32be(loc, (read32be(loc) & ~0x003fffff) |
+                       ((((int64_t)val < 0 ? ~val : val) >> 10) & 0x003fffff));
+    break;
+  case R_SPARC_GOTDATA_OP_LOX10:
+    // T-imm13
+    write32be(loc, (read32be(loc) & ~0x00001fff) | (val & 0x000003ff) |
+                       ((int64_t)val < 0 ? 0x1c00 : 0));
+    break;
+  case R_SPARC_GOTDATA_OP:
+    // ldx [%rs1 + %rs2], %rd -> add %rs1, %rs2, %rd
+    write32be(loc, (read32be(loc) & 0x3e07c01f) | 0x80000000);
     break;
   default:
     llvm_unreachable("unknown relocation");

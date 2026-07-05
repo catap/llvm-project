@@ -145,7 +145,7 @@ bool lld::elf::needsGot(RelExpr expr) {
 static bool isRelExpr(RelExpr expr) {
   return oneof<R_PC, R_GOTREL, R_GOTPLTREL, RE_ARM_PCA, RE_MIPS_GOTREL,
                RE_PPC64_CALL, RE_AARCH64_PAGE_PC, R_RELAX_GOT_PC,
-               RE_RISCV_PC_INDIRECT, RE_LOONGARCH_PAGE_PC,
+               R_RELAX_GOT_OFF, RE_RISCV_PC_INDIRECT, RE_LOONGARCH_PAGE_PC,
                RE_LOONGARCH_PC_INDIRECT>(expr);
 }
 
@@ -920,14 +920,19 @@ void RelocScan::process(RelExpr expr, RelType type, uint64_t offset,
   // indirection.
   const bool isIfunc = sym.isGnuIFunc();
   if (!sym.isPreemptible && !isIfunc) {
-    if (expr != R_GOT_PC) {
+    if (expr != R_GOT_PC && expr != R_GOT_OFF) {
       expr = fromPlt(expr);
     } else if (!isAbsoluteOrTls(sym)) {
-      expr = ctx.target->adjustGotPcExpr(type, addend,
-                                         sec->content().data() + offset);
-      // If the target adjusted the expression to R_RELAX_GOT_PC, we may end up
+      if (expr == R_GOT_PC)
+        expr = ctx.target->adjustGotPcExpr(type, addend,
+                                           sec->content().data() + offset);
+      else
+        expr = ctx.target->adjustGotOffExpr(type, sym, addend,
+                                            sec->content().data() + offset);
+
+      // If the target adjusted the expression to R_RELAX_GOT_*, we may end up
       // needing the GOT if we can't relax everything.
-      if (expr == R_RELAX_GOT_PC)
+      if (expr == R_RELAX_GOT_PC || expr == R_RELAX_GOT_OFF)
         ctx.in.got->hasGotOffRel.store(true, std::memory_order_relaxed);
     }
   }

@@ -195,6 +195,8 @@ public:
   virtual RelExpr adjustTlsExpr(RelType type, RelExpr expr) const;
   virtual RelExpr adjustGotPcExpr(RelType type, int64_t addend,
                                   const uint8_t *loc) const;
+  virtual RelExpr adjustGotOffExpr(RelType type, const Symbol &sym,
+                                   int64_t addend, const uint8_t *loc) const;
 
 protected:
   // On FreeBSD x86_64 the first page cannot be mmaped.
